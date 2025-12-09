@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halal Substitute & Calculator</title>
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --secondary: #27ae60;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --accent: #3498db;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f9fa;
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        header h1 { margin: 0; font-size: 2.2rem; }
+        header p { opacity: 0.9; margin-top: 0.5rem; }
+
+        .search-container {
+            max-width: 600px;
+            margin: -25px auto 20px;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border-left: 6px solid var(--primary);
+            transition: transform 0.2s;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .haram-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--danger);
+            text-decoration: line-through;
+        }
+
+        .halal-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .arrow { font-size: 1.2rem; color: #95a5a6; }
+
+        .badge {
+            background: var(--light);
+            color: var(--dark);
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        /* Styles untuk Kalkulator */
+        .calc-box {
+            background-color: #eaf2f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #d6eaf8;
+        }
+
+        .calc-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .calc-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .calc-input {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .calc-result {
+            margin-top: 10px;
+            font-weight: bold;
+            color: var(--dark);
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .recipe-text {
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #95a5a6;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #95a5a6;
+            font-size: 0.9rem;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🍳 Halal Converter</h1>
+        <p>Cari pengganti & hitung takarannya.</p>
+    </header>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Cari: Mirin, Wine, Gelatin...">
+    </div>
+
+    <div class="container" id="resultsContainer">
+        </div>
+
+    <footer>
+        <p>Solusi Masak Halal • v2.0 by Teguh Sutanto |  <a href="https://lynk.id/alima">About</a></p>
+    </footer>
+
+    <script>
+        // Database Bahan & Logika Kalkulasi
+		// Data Master Bahan Mentah
+const rawData = [
+    // --- KATEGORI 1: BUMBU JEPANG & KOREA ---
+    {
+        haram: "Mirin",
+        halal: "Air Gula Lemon",
+        unit: "ml",
+        desc: "Rasa manis & kilap masakan Jepang.",
+        calculate: (val) => `Campur <b>${val} ml</b> Air + <b>${Math.round(val * 0.3)} gr</b> Gula + 1 sdt Lemon.`
+    },
+    {
+        haram: "Sake (Masakan)",
+        halal: "Jus Anggur Putih + Cuka Beras",
+        unit: "ml",
+        desc: "Aroma fermentasi Jepang.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Anggur Putih dicampur sedikit Cuka Beras.`
+    },
+    {
+        haram: "Shoyu (Beralkohol)",
+        halal: "Kecap Asin Halal (Kikkoman Halal)",
+        unit: "ml",
+        desc: "Kecap asin Jepang.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Kecap Asin Halal (Perhatikan logo MUI).`
+    },
+    {
+        haram: "Dashi (Bonito/Ikan)",
+        halal: "Kombu Dashi (Rumput Laut)",
+        unit: "ml",
+        desc: "Kaldu dasar Jepang.",
+        calculate: (val) => `Rendam Kombu dalam <b>${val} ml</b> air dingin (3-5 jam).`
+    },
+    {
+        haram: "Miso Paste (Beralkohol)",
+        halal: "Tauco Halus / Miso Halal",
+        unit: "gram",
+        desc: "Pasta kedelai fermentasi.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Tauco yang dihaluskan atau Miso bersertifikat Halal.`
+    },
+    {
+        haram: "Gochujang (Beralkohol)",
+        halal: "Gochujang Halal (KMF/MUI)",
+        unit: "gram",
+        desc: "Pasta cabai Korea.",
+        calculate: (val) => `Wajib cari logo halal. Atau buat sendiri: Bubuk Cabe + Tepung Beras Ketan + Kecap Asin.`
+    },
+    {
+        haram: "Soju",
+        halal: "Sprite + Air Soda",
+        unit: "ml",
+        desc: "Minuman alkohol Korea (untuk resep cocktail/marinade).",
+        calculate: (val) => `Ganti dengan <b>${val} ml</b> campuran Sprite/Soda tawar untuk efek karbonasi/manis.`
+    },
+    {
+        haram: "Makgeolli",
+        halal: "Air Tajin (Air Rebusan Beras) + Soda",
+        unit: "ml",
+        desc: "Arak beras Korea.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Air tajin kental dicampur sedikit air soda.`
+    },
+    
+    // --- KATEGORI 2: ALKOHOL BARAT (WINE & SPIRITS) ---
+    {
+        haram: "Red Wine",
+        halal: "Jus Anggur Merah + Cuka",
+        unit: "ml",
+        desc: "Untuk masakan daging merah/stew.",
+        calculate: (val) => `Campur <b>${Math.round(val * 0.8)} ml</b> Jus Anggur + <b>${Math.round(val * 0.2)} ml</b> Cuka Apel.`
+    },
+    {
+        haram: "White Wine",
+        halal: "Kaldu Ayam + Cuka Apel",
+        unit: "ml",
+        desc: "Untuk seafood, pasta, risoto.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Kaldu Ayam + 1 sdm Cuka Apel.`
+    },
+    {
+        haram: "White Wine Vinegar",
+        halal: "Cuka Apel / Cuka Lemon",
+        unit: "ml",
+        desc: "Cuka dari anggur putih.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Cuka Apel atau Air Lemon.`
+    },
+    {
+        haram: "Red Wine Vinegar",
+        halal: "Cuka Anggur (Non-Alkohol) / Balsamic Halal",
+        unit: "ml",
+        desc: "Cuka anggur merah.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Cuka biasa dicampur sedikit jus anggur.`
+    },
+    {
+        haram: "Beer (Light/Lager)",
+        halal: "Ginger Ale / Air Soda + Kaldu",
+        unit: "ml",
+        desc: "Untuk adonan tepung (Batter).",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Air Soda dingin (Sparkling Water) untuk kerenyahan.`
+    },
+    {
+        haram: "Beer (Dark/Stout)",
+        halal: "Kopi Hitam Encer + Kaldu Sapi",
+        unit: "ml",
+        desc: "Untuk stew daging sapi.",
+        calculate: (val) => `Campur <b>${val} ml</b> Kaldu Sapi pekat dengan sedikit Kopi Hitam (untuk warna & rasa pahit).`
+    },
+    {
+        haram: "Brandy / Cognac",
+        halal: "Jus Persik / Sirup Buah Persik",
+        unit: "ml",
+        desc: "Aroma buah dan oak.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> sirup buah persik atau jus pir.`
+    },
+    {
+        haram: "Sherry",
+        halal: "Jus Jeruk + Jus Nanas",
+        unit: "ml",
+        desc: "Wine manis Spanyol.",
+        calculate: (val) => `Campurkan Jus Jeruk dan Jus Nanas dengan rasio 1:1 sebanyak <b>${val} ml</b>.`
+    },
+    {
+        haram: "Vermouth",
+        halal: "Jus Anggur + Air Lemon",
+        unit: "ml",
+        desc: "Wine herbal.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Anggur dengan ekstra air lemon.`
+    },
+    {
+        haram: "Vodka",
+        halal: "Air Putih + Jeruk Nipis",
+        unit: "ml",
+        desc: "Alkohol netral.",
+        calculate: (val) => `Ganti dengan <b>${val} ml</b> Air matang + sedikit perasan jeruk nipis (karena vodka rasanya hampir netral).`
+    },
+    {
+        haram: "Rum (Dark)",
+        halal: "Jus Nanas + Molase/Gula Merah",
+        unit: "ml",
+        desc: "Aroma manis karamel.",
+        calculate: (val) => `Larutkan Gula Merah/Aren cair dalam sedikit jus nanas hingga total <b>${val} ml</b>.`
+    },
+    {
+        haram: "Rum (Light)",
+        halal: "Jus Apel + Ekstrak Almond",
+        unit: "ml",
+        desc: "Untuk kue/mojito.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Apel/Anggur Putih.`
+    },
+    {
+        haram: "Whiskey / Bourbon",
+        halal: "Jus Persik (Peach) + Vanila",
+        unit: "ml",
+        desc: "Aroma kayu dan vanila.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus buah Peach + sebatang kayu manis.`
+    },
+    {
+        haram: "Tequila",
+        halal: "Jus Kaktus / Lidah Buaya + Lemon",
+        unit: "ml",
+        desc: "Minuman Agave.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Lidah Buaya (Aloe Vera) dicampur lemon.`
+    },
+    {
+        haram: "Champagne / Sparkling Wine",
+        halal: "Sparkling Grape Juice / Air Soda",
+        unit: "ml",
+        desc: "Minuman berkarbonasi.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Anggur Berkarbonasi atau Ginger Ale.`
+    },
+    {
+        haram: "Amaretto",
+        halal: "Ekstrak Almond",
+        unit: "sdt",
+        desc: "Likur rasa almond.",
+        calculate: (val) => `Gunakan <b>${val/2} sdt</b> Ekstrak Almond (rasanya lebih kuat).`
+    },
+    {
+        haram: "Kahlua",
+        halal: "Espresso + Sirup Coklat",
+        unit: "ml",
+        desc: "Likur rasa kopi.",
+        calculate: (val) => `Campur Kopi Espresso kuat dengan gula/sirup coklat hingga <b>${val} ml</b>.`
+    },
+    {
+        haram: "Cointreau / Triple Sec",
+        halal: "Jus Jeruk Konsentrat",
+        unit: "ml",
+        desc: "Likur rasa jeruk.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> Jus Jeruk Sunkist pekat atau parutan kulit jeruk.`
+    },
+    {
+        haram: "Kirsch",
+        halal: "Jus Ceri / Air Sirup Ceri",
+        unit: "ml",
+        desc: "Likur ceri.",
+        calculate: (val) => `Gunakan <b>${val} ml</b> air rendaman buah Ceri (Maraschino cherry syrup).`
+    },
+
+    // --- KATEGORI 3: MASAKAN CHINA ---
+    {
+        haram: "Angciu (Arak Merah)",
+        halal: "Kecap Asin + Jahe + Jeruk Nipis",
+        unit: "ml",
+        desc: "Bumbu wajib nasi goreng Chinese.",
+        calculate: (val) => `Campur Kecap Asin, Jahe geprek, dan perasan jeruk nipis hingga <b>${val} ml</b>.`
+    },
+    {
+        haram: "Shaoxing Wine",
+        halal: "Kecap Asin + Cuka + Gula",
+        unit: "ml",
+        desc: "Cooking wine China paling umum.",
+        calculate: (val) => `Campur <b>${val} ml</b> campuran Kecap Asin dan Cuka Apel (Rasio 3:1).`
+    },
+    {
+        haram: "Oyster Sauce (Non-Halal)",
+        halal: "Saus Tiram Halal (Logo MUI)",
+        unit: "sdm",
+        desc: "Saus tiram asli kadang mengandung arak.",
+        calculate: (val) => `Gunakan <b>${val} sdm</b> Saus Tiram merek lokal (Saori/Lee Kum Kee Halal).`
+    },
+    {
+        haram: "Kecap Ikan (Non-Halal)",
+        halal: "Kecap Ikan Halal / Kecap Asin + Terasi",
+        unit: "ml",
+        desc: "Bumbu Thailand/Vietnam.",
+        calculate: (val) => `Rebus Kecap Asin dengan sedikit Terasi bakar, saring ambil <b>${val} ml</b> airnya.`
+    },
+    
+    // --- KATEGORI 4: BABI & TURUNANNYA (DAGING) ---
+    {
+        haram: "Bacon (Pork)",
+        halal: "Beef Bacon / Smoked Beef",
+        unit: "lembar",
+        desc: "Daging asap untuk sarapan/burger.",
+        calculate: (val) => `Gunakan <b>${val} lembar</b> Beef Bacon. Goreng sampai krispi.`
+    },
+    {
+        haram: "Ham (Pork)",
+        halal: "Smoked Chicken / Turkey Ham",
+        unit: "lembar",
+        desc: "Daging olahan sandwich.",
+        calculate: (val) => `Gunakan <b>${val} lembar</b> Daging Asap Ayam atau Kalkun.`
+    },
+    {
+        haram: "Pancetta",
+        halal: "Daging Sapi Asap (Cured Beef)",
+        unit: "gram",
+        desc: "Bacon Italia yang diasinkan.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Daging Sapi Asap, tambahkan sedikit garam lebih.`
+    },
+    {
+        haram: "Prosciutto",
+        halal: "Dendeng Sapi Tipis (Bresaola)",
+        unit: "gram",
+        desc: "Ham kering Italia.",
+        calculate: (val) => `Cari 'Bresaola' (Daging sapi kering) atau gunakan dendeng sapi tipis <b>${val} gr</b>.`
+    },
+    {
+        haram: "Pepperoni (Pork)",
+        halal: "Beef Pepperoni",
+        unit: "lembar",
+        desc: "Topping Pizza.",
+        calculate: (val) => `Gunakan <b>${val} lembar</b> Beef Pepperoni (Tersedia banyak di supermarket).`
+    },
+    {
+        haram: "Chorizo (Pork)",
+        halal: "Sosis Sapi Pedas (Beef Chorizo)",
+        unit: "buah",
+        desc: "Sosis pedas Spanyol/Mexico.",
+        calculate: (val) => `Gunakan <b>${val} buah</b> Sosis Sapi lada hitam/pedas.`
+    },
+    {
+        haram: "Salami (Pork)",
+        halal: "Beef Salami",
+        unit: "lembar",
+        desc: "Sosis fermentasi kering.",
+        calculate: (val) => `Gunakan <b>${val} lembar</b> Beef Salami.`
+    },
+    {
+        haram: "Lap Cheong (Sosis Babi)",
+        halal: "Sosis Ayam Manis",
+        unit: "buah",
+        desc: "Sosis kering China manis.",
+        calculate: (val) => `Gunakan <b>${val} buah</b> Sosis Ayam, masak dengan sedikit madu dan bubuk ngohiong.`
+    },
+    {
+        haram: "Pork Belly (Samcan)",
+        halal: "Beef Shortplate (US Beef Slice)",
+        unit: "gram",
+        desc: "Daging berlapis lemak.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Daging Sapi Slice berlemak (Shortplate).`
+    },
+    {
+        haram: "Pork Ribs (Iga Babi)",
+        halal: "Iga Sapi (Beef Ribs)",
+        unit: "gram",
+        desc: "Iga bakar/sup.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Iga Sapi. Masak lebih lama agar empuk.`
+    },
+    {
+        haram: "Pork Loin",
+        halal: "Sirloin Sapi / Dada Ayam",
+        unit: "gram",
+        desc: "Daging tanpa banyak lemak.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Sirloin Sapi atau Dada Ayam Fillet.`
+    },
+    {
+        haram: "Pork Chops",
+        halal: "Lamb Chops (Domba) / Steak Sapi",
+        unit: "potong",
+        desc: "Potongan daging bertulang.",
+        calculate: (val) => `Gunakan <b>${val} potong</b> Iga Domba atau Steak Sapi.`
+    },
+    {
+        haram: "Ground Pork (Babi Giling)",
+        halal: "Daging Ayam Giling + Kulit",
+        unit: "gram",
+        desc: "Isian dumpling/siomay.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> campuran Paha Ayam Giling dan Kulit Ayam (agar juicy).`
+    },
+    {
+        haram: "Lard (Lemak Babi)",
+        halal: "Minyak Samin / Minyak Kulit Ayam",
+        unit: "gram",
+        desc: "Lemak untuk menggoreng/kue.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Minyak Samin atau goreng kulit ayam sampai keluar minyaknya.`
+    },
+    {
+        haram: "Tonkotsu (Kaldu Babi)",
+        halal: "Kaldu Kolagen Sapi/Ayam",
+        unit: "ml",
+        desc: "Kuah Ramen kental.",
+        calculate: (val) => `Rebus ceker ayam dan tulang sapi selama 8 jam hingga putih susu (Collagen Broth) sebanyak <b>${val} ml</b>.`
+    },
+    {
+        haram: "Gelatin (Babi)",
+        halal: "Gelatin Sapi (Bovine) / Agar-agar",
+        unit: "gram",
+        desc: "Pengental mousse/puding.",
+        calculate: (val) => `Jika pakai agar-agar, gunakan <b>${Math.round(val * 0.6)} gr</b> (lebih sedikit dari resep gelatin).`
+    },
+    {
+        haram: "Mortadella (Pork)",
+        halal: "Beef Bolognaise",
+        unit: "lembar",
+        desc: "Daging giling halus Italia.",
+        calculate: (val) => `Gunakan <b>${val} lembar</b> Beef Bolognaise.`
+    },
+    {
+        haram: "Guanciale",
+        halal: "Daging Sapi Asap Berlemak",
+        unit: "gram",
+        desc: "Pipi babi untuk Carbonara.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Smoked Beef yang ada lapisan lemaknya.`
+    },
+    {
+        haram: "Bratwurst (Pork)",
+        halal: "Beef/Chicken Bratwurst",
+        unit: "buah",
+        desc: "Sosis Jerman.",
+        calculate: (val) => `Gunakan <b>${val} buah</b> Bratwurst Sapi/Ayam.`
+    },
+
+    // --- KATEGORI 5: BAKING & LAINNYA ---
+    {
+        haram: "Ekstrak Vanila (Alkohol)",
+        halal: "Vanila Bubuk / Pasta Vanila Halal",
+        unit: "sdt",
+        desc: "Pewangi kue.",
+        calculate: (val) => `Gunakan <b>${val} sdt</b> Vanila Pasta (Non-Alkohol) atau biji vanila asli.`
+    },
+    {
+        haram: "Anggur Merah (Kismis direndam Rum)",
+        halal: "Kismis rendam Jus Jeruk",
+        unit: "gram",
+        desc: "Isian fruit cake.",
+        calculate: (val) => `Rendam <b>${val} gr</b> kismis dalam jus jeruk hangat.`
+    },
+    {
+        haram: "Marshmallow (Gelatin Babi)",
+        halal: "Marshmallow Halal (Bovine/Fish Gelatin)",
+        unit: "gram",
+        desc: "Topping coklat/kue.",
+        calculate: (val) => `Cari kemasan bertanda 'Halal' atau 'Beef Gelatin'.`
+    },
+    {
+        haram: "Keju Parmesan (Animal Rennet)",
+        halal: "Keju Parmesan Halal / Nutritional Yeast",
+        unit: "gram",
+        desc: "Keju tabur pasta.",
+        calculate: (val) => `Cari Parmesan merek lokal (misal: Prochiz Gold) atau Nutritional Yeast <b>${val} gr</b>.`
+    },
+    {
+        haram: "Keju Gruyere (Animal Rennet)",
+        halal: "Cheddar Tua + Mozzarella",
+        unit: "gram",
+        desc: "Keju leleh gurih.",
+        calculate: (val) => `Campur Cheddar dan Mozzarella 1:1 sebanyak <b>${val} gr</b>.`
+    },
+    {
+        haram: "Pecorino Romano",
+        halal: "Keju Edam Tua",
+        unit: "gram",
+        desc: "Keju asin domba.",
+        calculate: (val) => `Gunakan <b>${val} gr</b> Keju Edam yang sudah tua (asin).`
+    },
+    {
+        haram: "Worcestershire Sauce (Original)",
+        halal: "Saus Inggris Halal",
+        unit: "ml",
+        desc: "Saus steak.",
+        calculate: (val) => `Cari Saus Inggris Halal atau campur Kecap Asin + Cuka + Gula.`
+    },
+    {
+        haram: "Dijon Mustard (with White Wine)",
+        halal: "Mustard Biasa + Cuka",
+        unit: "sdt",
+        desc: "Saus mustard Perancis.",
+        calculate: (val) => `Campur Mustard kuning biasa dengan sedikit cuka apel.`
+    },
+    {
+        haram: "Fondue (with Wine)",
+        halal: "Keju Leleh + Susu/Kaldu",
+        unit: "ml",
+        desc: "Saus keju celup.",
+        calculate: (val) => `Gantikan porsi wine dengan Susu UHT tawar atau Kaldu Ayam.`
+    },
+    {
+        haram: "Tiramisu (with Rum/Marsala)",
+        halal: "Kopi Kuat + Ekstrak Almond",
+        unit: "ml",
+        desc: "Dessert kopi Italia.",
+        calculate: (val) => `Celupkan ladyfinger hanya ke kopi espresso tanpa alkohol.`
+    }
+];
+
+// PROSES GENRATE DATA HINGGA BANYAK (Untuk mencapai target quantity)
+// Kita akan menduplikasi item daging dengan nama potongan berbeda agar pencarian lebih kaya
+const meatCuts = ["Loin", "Chop", "Shoulder", "Butt", "Ribs", "Shank", "Hock", "Knuckle", "Cutlet"];
+const meatTypes = ["Pork", "Babi"];
+
+let extraMeats = [];
+meatTypes.forEach(type => {
+    meatCuts.forEach(cut => {
+        extraMeats.push({
+            haram: `${type} ${cut}`,
+            halal: "Daging Sapi / Ayam (Bagian Paha/Iga)",
+            unit: "gram",
+            desc: `Potongan ${type} bagian ${cut}.`,
+            calculate: (val) => `Ganti dengan <b>${val} gr</b> Daging Sapi (Sirloin/Iga) atau Paha Ayam.`
+        });
+    });
+});
+
+// Gabungkan data asli + data extra
+let processedData = [...rawData, ...extraMeats];
+
+// Tambahkan ID otomatis
+const ingredientsData = processedData.map((item, index) => ({
+    id: index + 1,
+    ...item
+}));
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        // Fungsi Render Kartu
+        function displayIngredients(ingredients) {
+            resultsContainer.innerHTML = '';
+
+            if (ingredients.length === 0) {
+                resultsContainer.innerHTML = `<div class="no-results"><h3>Bahan tidak ditemukan 😔</h3></div>`;
+                return;
+            }
+
+            ingredients.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                // HTML Template Literal
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div>
+                            <span class="badge" style="background:#fee; color:red;">🚫 Haram</span>
+                            <div class="haram-name">${item.haram}</div>
+                        </div>
+                        <div class="arrow">➡</div>
+                        <div style="text-align: right;">
+                            <span class="badge" style="background:#eafaf1; color:green;">✅ Halal</span>
+                            <div class="halal-name">${item.halal}</div>
+                        </div>
+                    </div>
+                    
+                    <p class="recipe-text">${item.desc}</p>
+
+                    <div class="calc-box">
+                        <span class="calc-title">🧮 Kalkulator Takaran</span>
+                        <div class="calc-input-group">
+                            <label>Resep butuh (${item.unit}): </label>
+                            <input type="number" 
+                                   class="calc-input" 
+                                   placeholder="0" 
+                                   oninput="updateCalculation(${item.id}, this.value)">
+                        </div>
+                        <div id="result-${item.id}" class="calc-result" style="display:none;"></div>
+                    </div>
+                `;
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        // Fungsi Menghitung Real-time
+        window.updateCalculation = function(id, value) {
+            const resultBox = document.getElementById(`result-${id}`);
+            const item = ingredientsData.find(x => x.id === id);
+            
+            if (!value || value <= 0) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            resultBox.style.display = 'block';
+            // Panggil fungsi calculate dari object data
+            resultBox.innerHTML = item.calculate(value);
+        }
+
+        // Event Listener Search
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = ingredientsData.filter(item => {
+                return item.haram.toLowerCase().includes(searchTerm) || 
+                       item.halal.toLowerCase().includes(searchTerm);
+            });
+            displayIngredients(filtered);
+        });
+
+        // Load awal
+        displayIngredients(ingredientsData);
+
+    </script>
+</body>
+</html>
