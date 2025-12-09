@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quiz Konsep Halal – Haram (V2)</title>
+
+<style>
+:root{
+  --accent:#2563eb;
+  --accent-light:#dbeafe;
+  --danger:#dc2626;
+  --success:#16a34a;
+  --bg:#fdfdfd;
+  --card:#ffffff;
+  --radius:14px;
+  font-family: "Inter", sans-serif;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;background:var(--bg);color:#111;
+  padding:14px;max-width:480px;margin:auto;
+}
+
+/* CARD */
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.05);
+  opacity:0;
+  transform:translateY(10px);
+  animation:fadeIn 0.5s forwards;
+}
+@keyframes fadeIn{
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* PROGRESS BAR */
+.progress{
+  width:100%;background:#e2e8f0;height:12px;
+  border-radius:8px;margin-bottom:12px;overflow:hidden;
+}
+.progress-inner{
+  height:100%;width:0%;background:var(--accent);
+  transition:0.4s;
+}
+
+h1{font-size:20px;margin:0;color:#0f172a}
+p{margin:6px 0 10px;color:#334155}
+input{
+  width:100%;padding:10px;border-radius:10px;
+  border:1px solid #cbd5e1;font-size:15px;margin-top:4px;
+}
+
+.btn{
+  width:100%;padding:12px;font-size:16px;
+  border:none;border-radius:10px;margin-top:10px;
+  background:var(--accent);color:white;font-weight:600;
+}
+.btn:hover{background:#1d4ed8}
+.btn.secondary{
+  background:#e2e8f0;color:#1e293b;
+}
+
+/* QUESTION */
+.question{
+  font-size:18px;font-weight:600;margin-bottom:10px;
+}
+
+.answer{
+  padding:12px;border-radius:10px;
+  border:2px solid #e2e8f0;background:white;
+  margin-bottom:10px;font-size:15px;
+  transition:0.25s;
+}
+.answer:hover{border-color:var(--accent)}
+.answer.correct{
+  background:#dcfce7;border-color:var(--success);color:#065f46
+}
+.answer.wrong{
+  background:#fee2e2;border-color:var(--danger);color:#7f1d1d
+}
+
+.timer{font-weight:700;color:var(--accent);}
+.score{font-weight:700;color:#d97706;}
+.explain{margin-top:10px;font-size:14px;color:#334155}
+footer{text-align:center;margin-top:20px;font-size:12px;color:#777}
+</style>
+
+</head>
+<body>
+
+<div id="start" class="card">
+  <h1>Pre Test Kuliah Konsep Halal – Haram</h1>
+  <h2>AFI Nusantara 2025</h2>
+  <p>Masukkan nama Anda:</p>
+  <input type="text" id="playerName" placeholder="Nama peserta">
+  <button class="btn" id="btnStart">Mulai Quiz</button>
+</div>
+
+<div id="quiz" class="card" hidden>
+  <div class="progress">
+    <div class="progress-inner" id="progressInner"></div>
+  </div>
+
+  <div class="timer">Waktu: <span id="timer">30</span>s</div>
+  <div class="score">Skor: <span id="score">0</span></div>
+
+  <div class="question" id="questionText"></div>
+  <div id="answers"></div>
+  <div class="explain" id="explain"></div>
+
+  <button class="btn secondary" id="btnNext" hidden>Lanjut</button>
+</div>
+
+<div id="result" class="card" hidden>
+  <h2>Hasil Quiz</h2>
+  <p>Nama: <strong id="resultName"></strong></p>
+  <p>Skor: <strong id="resultScore"></strong></p>
+
+  <button class="btn" id="btnSendWA">Kirim via WhatsApp</button>
+  <button class="btn secondary" id="btnRetry">Ulangi Quiz</button>
+</div>
+
+<footer>Created by Teguh Sutanto - untuk AFI Nusantara | Profile <a href="https://lynk.id/alima">link</a></footer>
+
+<script>
+// ====================
+// KONFIG
+// ====================
+const ADMIN_WA = "628563076813"; // GANTI DI SINI
+const TIME_PER_Q = 30;
+const POINTS = 100;
+
+async function sendToGoogleSheets(name, score){
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbw9xJgdt1-KaPKFdlTBZPL4g_9ZIMjiZz_jS2b80rKixnoFS9Q72P78EGaFZPuvJKWU/exec";
+
+  const payload = {
+    name: name,
+    score: score
+  };
+
+  try {
+    const res = await fetch(SHEET_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    console.log("Terkirim ke Sheets");
+  } catch (err){
+    console.error("Gagal kirim:", err);
+  }
+}
+
+// ====================
+// DATA SOAL
+// ====================
+const QUESTIONS = [
+  {
+    q:"Produk gelatin paling berisiko berasal dari?",
+    opts:["Ikan","Sapi halal","Babi","Ayam"],
+    a:2,
+    exp:"Gelatin babi adalah sumber paling berisiko secara kehalalan."
+  },
+  {
+    q:"Natural flavor sering mengandung?",
+    opts:["Air","Madu","Alkohol sebagai pelarut","Tepung"],
+    a:2,
+    exp:"Banyak flavor diekstrak menggunakan alkohol."
+  },
+  {
+    q:"Rennet pada keju berasal dari?",
+    opts:["Tumbuhan","Bakteri","Hewan (usus sapi/domba)","Jamur"],
+    a:2,
+    exp:"Rennet hewani sering menjadi titik kritis halal."
+  },
+  {
+    q:"Dalam kondisi darurat, makanan haram?",
+    opts:["Tetap haram","Boleh sekedarnya untuk selamat","Wajib dimakan","Ikut pemerintah"],
+    a:1,
+    exp:"Darurat memberi rukhsah: boleh sekedarnya."
+  },
+  {
+    q:"Istilah syubhat berarti?",
+    opts:["Halal jelas","Haram jelas","Meragukan","Murah"],
+    a:2,
+    exp:"Syubhat = samar, dianjurkan untuk dihindari."
+  }
+];
+
+// SHUFFLE FUNCTION
+function shuffle(arr){
+  return arr.sort(()=>Math.random()-0.5);
+}
+
+// Clone & randomize questions
+let qBank = shuffle(JSON.parse(JSON.stringify(QUESTIONS)));
+
+let index=0, score=0, timer=TIME_PER_Q, interval, answered=false;
+
+// ====================
+// DOM
+// ====================
+const start = document.getElementById("start");
+const quiz = document.getElementById("quiz");
+const result = document.getElementById("result");
+const qText = document.getElementById("questionText");
+const answers = document.getElementById("answers");
+const explain = document.getElementById("explain");
+const timerEl = document.getElementById("timer");
+const scoreEl = document.getElementById("score");
+const progressInner = document.getElementById("progressInner");
+
+// ====================
+// MULAI
+// ====================
+document.getElementById("btnStart").onclick = () => {
+  const name = document.getElementById("playerName").value.trim();
+  if(!name) return alert("Masukkan nama dulu.");
+  start.hidden = true;
+  quiz.hidden = false;
+  loadQuestion();
+};
+
+// ====================
+// LOAD SOAL
+// ====================
+function loadQuestion(){
+  const q = qBank[index];
+  answered = false;
+  explain.innerHTML = "";
+  answers.innerHTML = "";
+  timer = TIME_PER_Q;
+  timerEl.textContent = timer;
+
+  // Update progress bar
+  const progress = ((index)/qBank.length)*100;
+  progressInner.style.width = progress+"%";
+
+  qText.textContent = (index+1)+". "+q.q;
+
+  // Randomize option order
+  const options = q.opts.map((opt,i)=>({opt,i}));
+  shuffle(options);
+
+  options.forEach(({opt,i})=>{
+    const btn = document.createElement("button");
+    btn.className = "answer";
+    btn.textContent = opt;
+    btn.onclick = ()=> choose(i);
+    answers.appendChild(btn);
+  });
+
+  document.getElementById("btnNext").hidden = true;
+
+  clearInterval(interval);
+  interval = setInterval(()=>{
+    timer--;
+    timerEl.textContent = timer;
+    if(timer<=0){
+      clearInterval(interval);
+      mark(null);
+    }
+  },1000);
+}
+
+// ====================
+// PILIH JAWABAN
+// ====================
+function choose(i){
+  if(answered) return;
+  clearInterval(interval);
+  mark(i);
+}
+
+function mark(i){
+  answered = true;
+  const correct = qBank[index].a;
+  const all = answers.querySelectorAll("button");
+
+  all.forEach((btn,idx)=>{
+    btn.disabled = true;
+    if(idx===correct){ btn.classList.add("correct"); }
+    if(i===idx && idx!==correct){ btn.classList.add("wrong"); }
+  });
+
+  if(i===correct){
+    score+=POINTS;
+    scoreEl.textContent = score;
+    explain.innerHTML = "<span style='color:var(--success);font-weight:600'>Benar!</span> "+qBank[index].exp;
+  } else {
+    explain.innerHTML = "<span style='color:var(--danger);font-weight:600'>Salah.</span> "+qBank[index].exp;
+  }
+
+  document.getElementById("btnNext").hidden = false;
+}
+
+// ====================
+// NEXT
+// ====================
+document.getElementById("btnNext").onclick = ()=>{
+  index++;
+  if(index>=qBank.length){
+    showResult();
+  } else {
+    loadQuestion();
+  }
+};
+
+// ====================
+// RESULT
+// ====================
+function showResult(){
+  quiz.hidden = true;
+  result.hidden = false;
+
+  const name = document.getElementById("playerName").value;
+  document.getElementById("resultName").textContent = name;
+  document.getElementById("resultScore").textContent = score;
+  
+   sendToGoogleSheets(name, score);
+}
+
+// ====================
+// WhatsApp SEND
+// ====================
+document.getElementById("btnSendWA").onclick = ()=>{
+  const name = document.getElementById("playerName").value;
+  const msg = 
+`Assalamu'alaikum.
+Hasil Quiz:
+Nama: ${name}
+Skor: ${score}
+Soal: ${qBank.length}`;
+
+  const url = "https://wa.me/"+ADMIN_WA+"?text="+encodeURIComponent(msg);
+  window.open(url, "_blank");
+};
+
+// ====================
+// Retry
+// ====================
+document.getElementById("btnRetry").onclick = ()=>{
+  index=0;
+  score=0;
+  scoreEl.textContent = 0;
+  qBank = shuffle(JSON.parse(JSON.stringify(QUESTIONS)));
+  result.hidden=true;
+  quiz.hidden=false;
+  loadQuestion();
+};
+</script>
+
+</body>
+</html>
