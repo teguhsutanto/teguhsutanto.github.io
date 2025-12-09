@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cek Kode E Makanan (Halal Checker)</title>
+    <style>
+        /* CSS: Untuk mempercantik tampilan */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 { color: #333; font-size: 24px; margin-bottom: 20px; }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            flex-grow: 1;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus { border-color: #4CAF50; }
+
+        button {
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        button:hover { background-color: #45a049; }
+
+        /* Kotak Hasil */
+        #result-card {
+            display: none; /* Sembunyikan saat awal */
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid transparent;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .desc { color: #555; line-height: 1.5; }
+
+        /* Warna Status */
+        .halal-theme { background-color: #e8f5e9; border-color: #4CAF50 !important; }
+        .halal-badge { background-color: #4CAF50; }
+
+        .syubhat-theme { background-color: #fff8e1; border-color: #FFC107 !important; }
+        .syubhat-badge { background-color: #FFC107; color: #333; }
+
+        .haram-theme { background-color: #ffebee; border-color: #F44336 !important; }
+        .haram-badge { background-color: #F44336; }
+		footer{text-align:center;margin-top:20px;font-size:12px;color:#777}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🔍 Cek Kode E</h1>
+        <p>Masukkan kode aditif (contoh: E100, E471, E120)</p>
+        
+        <div class="search-box">
+            <input type="text" id="inputCode" placeholder="Masukkan kode..." onkeypress="handleEnter(event)">
+            <button onclick="checkHalal()">Cek</button>
+        </div>
+
+        <div id="result-card">
+            <span id="statusBadge" class="status-badge"></span>
+            <h2 id="codeTitle" style="margin: 10px 0;"></h2>
+            <p id="description" class="desc"></p>
+        </div>
+		<footer>Created by Teguh Sutanto - untuk AFI Nusantara | Profile <a href="https://lynk.id/alima">link</a></footer>
+    </div>
+
+    <script>
+        // JAVASCRIPT: Logika Program
+
+        // 1. Database Sederhana (Array of Objects)
+        // Anda bisa menambahkan data lain di sini
+        const database = [
+            {
+    code: "E100",
+    name: "Curcumin (Kunyit)",
+    status: "Halal",
+    desc: "Pewarna alami dari tanaman kunyit. Kategori: Pewarna. Sumber: Nabati."
+  },
+  {
+    code: "E101",
+    name: "Riboflavin (Vit B2)",
+    status: "Tergantung sumber",
+    desc: "Pewarna/vitamin; bisa sintetik atau dari hewani. Kategori: Pewarna."
+  },
+  {
+    code: "E102",
+    name: "Tartrazine",
+    status: "Halal",
+    desc: "Pewarna kuning sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E104",
+    name: "Quinoline Yellow",
+    status: "Halal",
+    desc: "Pewarna kuning sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E110",
+    name: "Sunset Yellow FCF",
+    status: "Halal",
+    desc: "Pewarna oranye sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E120",
+    name: "Carmine (Cochineal)",
+    status: "Haram",
+    desc: "Pewarna merah dari serangga cochineal. Kategori: Pewarna. Sumber: Serangga."
+  },
+  {
+    code: "E122",
+    name: "Azorubine (Carmoisine)",
+    status: "Halal",
+    desc: "Pewarna merah sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E129",
+    name: "Allura Red AC",
+    status: "Halal",
+    desc: "Pewarna merah sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E140",
+    name: "Chlorophyll",
+    status: "Tergantung sumber",
+    desc: "Pewarna hijau dari tanaman, proses ekstraksi bisa pakai pelarut. Kategori: Pewarna."
+  },
+  {
+    code: "E141",
+    name: "Copper Chlorophyll Complex",
+    status: "Tergantung sumber",
+    desc: "Kompleks klorofil berikatan tembaga; sumber & proses menentukan status. Kategori: Pewarna."
+  },
+  {
+    code: "E150a",
+    name: "Caramel (Plain)",
+    status: "Halal",
+    desc: "Pewarna karamel dari gula. Kategori: Pewarna."
+  },
+  {
+    code: "E153",
+    name: "Vegetable Carbon",
+    status: "Halal",
+    desc: "Karbon sayur (hitam) dari tumbuhan. Kategori: Pewarna."
+  },
+  {
+    code: "E160a",
+    name: "Carotenes",
+    status: "Halal",
+    desc: "Pigmen oranye dari tumbuhan/sintetis. Kategori: Pewarna."
+  },
+  {
+    code: "E160c",
+    name: "Paprika Extract (Capsanthin)",
+    status: "Halal",
+    desc: "Ekstrak paprika. Kategori: Pewarna. Sumber: Nabati."
+  },
+  {
+    code: "E161b",
+    name: "Lutein",
+    status: "Halal",
+    desc: "Xanthophyll dari tumbuhan. Kategori: Pewarna."
+  },
+  {
+    code: "E162",
+    name: "Beetroot Red (Betanin)",
+    status: "Halal",
+    desc: "Pewarna merah dari bit. Kategori: Pewarna."
+  },
+  {
+    code: "E163",
+    name: "Anthocyanins",
+    status: "Halal",
+    desc: "Pewarna ungu/merah dari buah-buahan. Kategori: Pewarna."
+  },
+
+  // === E200–E299: Pengawet ===
+  {
+    code: "E200",
+    name: "Sorbic Acid",
+    status: "Halal",
+    desc: "Pengawet sintetis. Kategori: Pengawet."
+  },
+  {
+    code: "E202",
+    name: "Potassium Sorbate",
+    status: "Halal",
+    desc: "Garam sorbat, pengawet sintetis. Kategori: Pengawet."
+  },
+  {
+    code: "E210",
+    name: "Benzoic Acid",
+    status: "Halal",
+    desc: "Pengawet sintetis. Kategori: Pengawet."
+  },
+  {
+    code: "E211",
+    name: "Sodium Benzoate",
+    status: "Halal",
+    desc: "Garam benzoat, pengawet sintetis. Kategori: Pengawet."
+  },
+  {
+    code: "E220",
+    name: "Sulphur Dioxide",
+    status: "Halal",
+    desc: "Pengawet (anti‑oksidan) gas. Kategori: Pengawet."
+  },
+  {
+    code: "E249",
+    name: "Potassium Nitrite",
+    status: "Halal",
+    desc: "Pengawet untuk daging olahan. Kategori: Pengawet."
+  },
+  {
+    code: "E250",
+    name: "Sodium Nitrite",
+    status: "Halal",
+    desc: "Pengawet untuk daging olahan. Kategori: Pengawet."
+  },
+  {
+    code: "E260",
+    name: "Acetic Acid",
+    status: "Halal",
+    desc: "Asam cuka; sintetis atau fermentasi. Kategori: Pengawet/Pengatur keasaman."
+  },
+  {
+    code: "E270",
+    name: "Lactic Acid",
+    status: "Tergantung sumber",
+    desc: "Hasil fermentasi; bisa terkait bahan hewani. Kategori: Pengawet/Pengatur keasaman."
+  },
+  {
+    code: "E280",
+    name: "Propionic Acid",
+    status: "Halal",
+    desc: "Pengawet roti; umumnya sintetis. Kategori: Pengawet."
+  },
+  {
+    code: "E296",
+    name: "Malic Acid",
+    status: "Halal",
+    desc: "Pengatur keasaman; alami/sintetis. Kategori: Pengawet/Pengatur keasaman."
+  },
+
+  // === E300–E399: Antioksidan & Pengatur Keasaman ===
+  {
+    code: "E300",
+    name: "Ascorbic Acid (Vit C)",
+    status: "Halal",
+    desc: "Antioksidan; biasanya sintetik/fermentasi atau dari buah. Kategori: Antioksidan."
+  },
+  {
+    code: "E301",
+    name: "Sodium Ascorbate",
+    status: "Halal",
+    desc: "Garam askorbat; antioksidan. Kategori: Antioksidan."
+  },
+  {
+    code: "E302",
+    name: "Calcium Ascorbate",
+    status: "Halal",
+    desc: "Garam askorbat; antioksidan. Kategori: Antioksidan."
+  },
+  {
+    code: "E306",
+    name: "Tocopherols (Vit E)",
+    status: "Halal",
+    desc: "Antioksidan dari minyak nabati. Kategori: Antioksidan."
+  },
+  {
+    code: "E310",
+    name: "Propyl Gallate",
+    status: "Halal",
+    desc: "Antioksidan sintetis. Kategori: Antioksidan."
+  },
+  {
+    code: "E319",
+    name: "TBHQ",
+    status: "Halal",
+    desc: "Antioksidan sintetis. Kategori: Antioksidan."
+  },
+  {
+    code: "E320",
+    name: "BHA",
+    status: "Halal",
+    desc: "Antioksidan sintetis. Kategori: Antioksidan."
+  },
+  {
+    code: "E321",
+    name: "BHT",
+    status: "Halal",
+    desc: "Antioksidan sintetis. Kategori: Antioksidan."
+  },
+  {
+    code: "E322",
+    name: "Lecithin",
+    status: "Tergantung sumber",
+    desc: "Emulsifier; bisa dari kedelai (nabati) atau telur/hewani. Kategori: Antioksidan/Emulsifier."
+  },
+  {
+    code: "E330",
+    name: "Citric Acid",
+    status: "Halal",
+    desc: "Pengatur keasaman; fermentasi. Kategori: Pengatur keasaman."
+  },
+  {
+    code: "E338",
+    name: "Phosphoric Acid",
+    status: "Halal",
+    desc: "Pengatur keasaman minuman berkarbonasi. Kategori: Pengatur keasaman."
+  },
+
+  // === E400–E499: Pengental/Penstabil/Emulsifier ===
+  {
+    code: "E400",
+    name: "Alginic Acid",
+    status: "Halal",
+    desc: "Pengental dari rumput laut. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E401",
+    name: "Sodium Alginate",
+    status: "Halal",
+    desc: "Garam alginat dari rumput laut. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E406",
+    name: "Agar",
+    status: "Halal",
+    desc: "Gel dari rumput laut. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E407",
+    name: "Carrageenan",
+    status: "Halal",
+    desc: "Gel/pengental dari rumput laut. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E410",
+    name: "Locust Bean Gum",
+    status: "Halal",
+    desc: "Gum dari biji tanaman. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E412",
+    name: "Guar Gum",
+    status: "Halal",
+    desc: "Gum dari biji tanaman. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E414",
+    name: "Gum Arabic (Acacia)",
+    status: "Halal",
+    desc: "Getah tanaman akasia. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E415",
+    name: "Xanthan Gum",
+    status: "Halal",
+    desc: "Gum hasil fermentasi mikroba. Kategori: Pengental/Penstabil."
+  },
+  {
+    code: "E422",
+    name: "Glycerol (Glycerine)",
+    status: "Tergantung sumber",
+    desc: "Humektan/pelarut; bisa dari lemak hewan atau nabati/sintetis. Kategori: Penstabil/Pelarut."
+  },
+  {
+    code: "E440",
+    name: "Pectin",
+    status: "Halal",
+    desc: "Gel dari buah‑buahan. Kategori: Pengental."
+  },
+  {
+    code: "E441",
+    name: "Gelatin",
+    status: "Haram",
+    desc: "Protein gel dari hewan (umumnya babi/sapi). Kategori: Pengental. Status bergantung sertifikasi."
+  },
+  {
+    code: "E450",
+    name: "Diphosphates",
+    status: "Halal",
+    desc: "Pengembang/pengikat air. Kategori: Penstabil/Pengatur keasaman."
+  },
+  {
+    code: "E471",
+    name: "Mono- & Diglycerides",
+    status: "Tergantung sumber",
+    desc: "Emulsifier dari asam lemak; bisa nabati atau hewani. Kategori: Emulsifier."
+  },
+  {
+    code: "E476",
+    name: "PGPR",
+    status: "Tergantung sumber",
+    desc: "Emulsifier; sumber gliserol/ricinoleat menentukan status. Kategori: Emulsifier."
+  },
+
+  // === E500–E599: Pengatur Keasaman & Anti-kempal ===
+  {
+    code: "E500",
+    name: "Sodium Carbonates",
+    status: "Halal",
+    desc: "Pengatur keasaman/pengembang. Kategori: Pengatur keasaman."
+  },
+  {
+    code: "E501",
+    name: "Potassium Carbonates",
+    status: "Halal",
+    desc: "Pengatur keasaman/pengembang. Kategori: Pengatur keasaman."
+  },
+  {
+    code: "E551",
+    name: "Silicon Dioxide",
+    status: "Halal",
+    desc: "Anti‑kempal (silika). Kategori: Anti‑kempal."
+  },
+
+  // === E600–E699: Penguat Rasa ===
+  {
+    code: "E621",
+    name: "Monosodium Glutamate (MSG)",
+    status: "Tergantung sumber",
+    desc: "Penguat rasa; umumnya fermentasi. Kategori: Penguat rasa."
+  },
+  {
+    code: "E627",
+    name: "Disodium Guanylate",
+    status: "Tergantung sumber",
+    desc: "Penguat rasa; bisa dari hewani atau fermentasi. Kategori: Penguat rasa."
+  },
+  {
+    code: "E631",
+    name: "Disodium Inosinate",
+    status: "Tergantung sumber",
+    desc: "Penguat rasa; bisa dari hewani atau fermentasi. Kategori: Penguat rasa."
+  },
+  {
+    code: "E635",
+    name: "Disodium 5′‑Ribonucleotide",
+    status: "Tergantung sumber",
+    desc: "Campuran inosinat/guanylat; sumber menentukan status. Kategori: Penguat rasa."
+  },
+
+  // === E900–E999: Lain-lain (glazing agents, gas, pemanis, propelan) ===
+  {
+    code: "E901",
+    name: "Beeswax",
+    status: "Tergantung sumber",
+    desc: "Lilin lebah (glazing agent). Kategori: Lain‑lain. Sumber: Hewani."
+  },
+  {
+    code: "E903",
+    name: "Carnauba Wax",
+    status: "Halal",
+    desc: "Lilin dari daun palem carnauba. Kategori: Lain‑lain. Sumber: Nabati."
+  },
+  {
+    code: "E904",
+    name: "Shellac",
+    status: "Haram",
+    desc: "Resin dari serangga Laccifer lacca. Kategori: Lain‑lain."
+  },
+  {
+    code: "E941",
+    name: "Nitrogen",
+    status: "Halal",
+    desc: "Gas pengemas. Kategori: Lain‑lain (Gas)."
+  },
+  {
+    code: "E942",
+    name: "Nitrous Oxide",
+    status: "Halal",
+    desc: "Gas pengembang krim. Kategori: Lain‑lain (Gas)."
+  },
+  {
+    code: "E950",
+    name: "Acesulfame K",
+    status: "Halal",
+    desc: "Pemanis sintetis. Kategori: Lain‑lain (Pemanis)."
+  },
+  {
+    code: "E951",
+    name: "Aspartame",
+    status: "Halal",
+    desc: "Pemanis sintetis. Kategori: Lain‑lain (Pemanis)."
+  },
+  {
+    code: "E955",
+    name: "Sucralose",
+    status: "Halal",
+    desc: "Pemanis sintetis. Kategori: Lain‑lain (Pemanis)."
+  },
+  {
+    code: "E960",
+    name: "Steviol Glycosides (Stevia)",
+    status: "Halal",
+    desc: "Pemanis dari daun stevia. Kategori: Lain‑lain (Pemanis)."
+  },
+  {
+    code: "E967",
+    name: "Xylitol",
+    status: "Halal",
+    desc: "Pemanis poliol, biasanya fermentasi/nabati. Kategori: Lain‑lain (Pemanis)."
+  },
+  {
+    code: "E968",
+    name: "Erythritol",
+    status: "Halal",
+    desc: "Pemanis poliol hasil fermentasi. Kategori: Lain‑lain (Pemanis)."
+  },
+
+  // === E1000+: Bahan tambahan lainnya ===
+  {
+    code: "E1103",
+    name: "Invertase",
+    status: "Halal",
+    desc: "Enzim (umumnya fermentasi mikroba). Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1105",
+    name: "Lysozyme",
+    status: "Tergantung sumber",
+    desc: "Enzim; sering dari putih telur (hewani) atau mikroba. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1200",
+    name: "Polydextrose",
+    status: "Halal",
+    desc: "Pengisi/pembawa; sintetis. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1201",
+    name: "Polyvinylpyrrolidone (PVP)",
+    status: "Halal",
+    desc: "Penstabil/pembawa; sintetis. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1202",
+    name: "Polyvinylpolypyrrolidone (PVPP)",
+    status: "Halal",
+    desc: "Penstabil/penjernih; sintetis. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1204",
+    name: "Pullulan",
+    status: "Halal",
+    desc: "Polisakarida hasil fermentasi. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1401",
+    name: "Modified Starch",
+    status: "Halal",
+    desc: "Pati termodifikasi; nabati. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1412",
+    name: "Distarch Phosphate",
+    status: "Halal",
+    desc: "Pati termodifikasi berfosfat. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1450",
+    name: "Starch Sodium Octenyl Succinate",
+    status: "Halal",
+    desc: "Pati termodifikasi (emulsifier). Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1505",
+    name: "Triethyl Citrate",
+    status: "Halal",
+    desc: "Pelarut/penstabil; ester sitrat. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1518",
+    name: "Triacetin (Glycerol Triacetate)",
+    status: "Halal",
+    desc: "Pelarut/plastisizer. Kategori: Bahan tambahan lainnya."
+  },
+  {
+    code: "E1520",
+    name: "Propylene Glycol",
+    status: "Halal",
+    desc: "Pelarut/pembawa; sintetis. Kategori: Bahan tambahan lainnya."
+  }
+        ];
+
+        // 2. Fungsi Pencarian
+        function checkHalal() {
+            const input = document.getElementById('inputCode').value.trim().toUpperCase(); // Ubah ke huruf besar
+            const resultCard = document.getElementById('result-card');
+            const badge = document.getElementById('statusBadge');
+            const title = document.getElementById('codeTitle');
+            const desc = document.getElementById('description');
+
+            // Reset tampilan
+            resultCard.style.display = 'none';
+            resultCard.className = ''; 
+
+            if (input === "") {
+                alert("Mohon masukkan kode terlebih dahulu!");
+                return;
+            }
+
+            // Cari data di database
+            const found = database.find(item => item.code === input);
+
+            if (found) {
+                // Tampilkan data
+                resultCard.style.display = 'block';
+                title.innerText = `${found.code} - ${found.name}`;
+                desc.innerText = found.desc;
+                badge.innerText = found.status;
+
+                // Ubah warna berdasarkan status
+                if (found.status === 'Halal') {
+                    resultCard.classList.add('halal-theme');
+                    badge.className = 'status-badge halal-badge';
+                } else if (found.status === 'Haram') {
+                    resultCard.classList.add('haram-theme');
+                    badge.className = 'status-badge haram-badge';
+                } else {
+                    resultCard.classList.add('syubhat-theme');
+                    badge.className = 'status-badge syubhat-badge';
+                }
+            } else {
+                // Jika data tidak ditemukan
+                alert(`Kode ${input} belum ada di database kami.`);
+            }
+        }
+
+        // Fitur tambahan: Tekan Enter untuk mencari
+        function handleEnter(e) {
+            if (e.key === 'Enter') {
+                checkHalal();
+            }
+        }
+    </script>
+</body>
+</html>
