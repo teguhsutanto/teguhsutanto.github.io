@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Herbal Dosage Calculator</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      background: #f5f7fa;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+
+  <div class="w-full max-w-lg bg-white rounded-xl shadow-lg p-8">
+    <h1 class="text-2xl font-bold mb-6 text-center text-green-700">
+      Herbal Dosage Calculator
+    </h1>
+
+    <!-- Herbal Dropdown -->
+    <label class="block font-medium mb-1">Pilih Herbal:</label>
+    <select id="herbSelect" class="w-full p-3 border rounded-lg mb-4">
+      <option value="">Memuat daftar herbal...</option>
+    </select>
+
+    <!-- Age -->
+    <label class="block font-medium mb-1">Usia (tahun):</label>
+    <input id="age" type="number" placeholder="Contoh: 30"
+      class="w-full p-3 border rounded-lg mb-4" />
+
+    <!-- Weight -->
+    <label class="block font-medium mb-1">Berat Badan (kg):</label>
+    <input id="weight" type="number" placeholder="Contoh: 60"
+      class="w-full p-3 border rounded-lg mb-4" />
+
+    <!-- Button -->
+    <button id="calculateBtn"
+      class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+      Hitung Dosis
+    </button>
+
+    <!-- Result Box -->
+    <div id="result" class="mt-6 p-4 bg-green-50 rounded-lg border border-green-200 hidden">
+    </div>
+  </div>
+
+  <script>
+    const herbSelect = document.getElementById("herbSelect");
+    const resultBox = document.getElementById("result");
+
+    // ===========================
+    // LOAD HERBS.JSON
+    // ===========================
+    fetch("herbs.json")
+      .then(response => response.json())
+      .then(data => {
+        window.herbs = data;
+        herbSelect.innerHTML = "<option value=''>-- Pilih Herbal --</option>";
+
+        Object.keys(data).forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          herbSelect.appendChild(opt);
+        });
+      })
+      .catch(() => {
+        herbSelect.innerHTML = "<option>Error memuat herbs.json</option>";
+      });
+
+    // ===========================
+    // CALCULATE BUTTON
+    // ===========================
+    document.getElementById("calculateBtn").onclick = () => {
+      const herb = herbSelect.value;
+      const age = parseInt(document.getElementById("age").value);
+      const weight = parseInt(document.getElementById("weight").value);
+
+      if (!herb || !age || !weight) {
+        resultBox.classList.remove("hidden");
+        resultBox.innerHTML = `<p class="text-red-600 font-medium">Mohon lengkapi semua input.</p>`;
+        return;
+      }
+
+      const data = herbs[herb];
+      const [minDose, maxDose] = data.range;
+
+      const factorAge = age < 12 ? 0.5 : 1;
+      const factorWeight = weight / 60;
+
+      const d1 = Math.round(minDose * factorAge * factorWeight);
+      const d2 = Math.round(maxDose * factorAge * factorWeight);
+
+      resultBox.classList.remove("hidden");
+      resultBox.innerHTML = `
+        <h3 class="text-lg font-bold text-green-700 mb-2">${herb}</h3>
+        <p class="text-gray-700">
+          Dosis harian: <strong>${d1} – ${d2} ${data.unit}</strong>
+        </p>
+
+        ${data.note ? `<p class="text-sm text-gray-500 mt-2"><em>${data.note}</em></p>` : ""}
+
+        ${data.caution 
+          ? `<p class="text-sm text-red-600 font-medium mt-2">⚠ Perhatian: ${data.caution}</p>`
+          : ""}
+      `;
+    };
+  </script>
+
+</body>
+</html>
